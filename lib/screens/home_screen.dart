@@ -1,69 +1,74 @@
 import 'package:flutter/material.dart';
+import '../models/usuario.dart';
+import '../models/mascota.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Usuario usuarioActual;
+  final Mascota mascotaActual;
+
+  const HomeScreen({
+    super.key,
+    required this.usuarioActual,
+    required this.mascotaActual,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Lista de actividades de cuidado para Corina
-  final List<Map<String, dynamic>> _actividades = [
-    {'titulo': 'Paseo de la mañana', 'subtitulo': 'Parque Tangamanga', 'completado': false},
-    {'titulo': 'Porción de croquetas', 'subtitulo': 'Alimentación', 'completado': false},
-    {'titulo': 'Dosis de medicina', 'subtitulo': 'Desparasitante', 'completado': false},
-    {'titulo': 'Cepillado de pelo', 'subtitulo': 'Higiene', 'completado': false},
-  ];
-
-  // Controladores para capturar el texto del nuevo pendiente
   final TextEditingController _tituloController = TextEditingController();
-  final TextEditingController _subtituloController = TextEditingController();
+  final TextEditingController _categoriaController = TextEditingController();
 
   void _toggleActividad(int index) {
     setState(() {
-      _actividades[index]['completado'] = !_actividades[index]['completado'];
+      widget.mascotaActual.tareasDiarias[index].completado = 
+          !widget.mascotaActual.tareasDiarias[index].completado;
     });
   }
 
-  // Función para abrir el cuadro de diálogo y agregar pendiente
+  void _cerrarSesion() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+  }
+
   void _mostrarDialogoAgregar() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Agregar pendiente para Corina'),
+          title: Text('Nueva tarea para ${widget.mascotaActual.nombre}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: _tituloController,
-                decoration: const InputDecoration(labelText: '¿Qué necesita Corina?'),
+                decoration: const InputDecoration(labelText: 'Tarea (Ej. Baño)'),
               ),
               TextField(
-                controller: _subtituloController,
-                decoration: const InputDecoration(labelText: 'Categoría o Detalles'),
+                controller: _categoriaController,
+                decoration: const InputDecoration(labelText: 'Categoría (Ej. Higiene)'),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
               onPressed: () {
-                // Agregar a la lista y actualizar la pantalla
                 setState(() {
-                  _actividades.add({
-                    'titulo': _tituloController.text,
-                    'subtitulo': _subtituloController.text,
-                    'completado': false,
-                  });
+                  widget.mascotaActual.tareasDiarias.add(
+                    TareaCuidado(
+                      titulo: _tituloController.text,
+                      categoria: _categoriaController.text,
+                    ),
+                  );
                 });
                 _tituloController.clear();
-                _subtituloController.clear();
+                _categoriaController.clear();
                 Navigator.pop(context);
               },
               child: const Text('Guardar'),
@@ -79,111 +84,80 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
-        title: const Text('Perfil de Corina'),
+        title: Text('Hola, ${widget.usuarioActual.nombre}'),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.person), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _cerrarSesion),
         ],
       ),
       body: Column(
         children: [
           const SizedBox(height: 20),
-          // Sección de Perfil
+          // Perfil dinámico de la Mascota
           const CircleAvatar(
             radius: 50,
             backgroundColor: Colors.blueGrey,
             child: Icon(Icons.pets, size: 50, color: Colors.white),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Corina <3',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Text(
+            widget.mascotaActual.nombre,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            '${widget.mascotaActual.especie} • ${widget.mascotaActual.edad} años',
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           const Divider(thickness: 1.5, color: Colors.grey),
-          const SizedBox(height: 16),
           
-          // Fila de Estadísticas Rápidas
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatCard('Edad', '2 años'),
-              _buildStatCard('Peso', '8kg'),
-              _buildStatCard('Racha', '5 Días'),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Lista de Actividades (Con Dismissible para borrar deslizando)
+          // Lista de Tareas de la Mascota
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _actividades.length,
+              itemCount: widget.mascotaActual.tareasDiarias.length,
               itemBuilder: (context, index) {
-                final act = _actividades[index];
-                final bool completado = act['completado'];
-
-                // Envolvemos la tarjeta en Dismissible para poder deslizarla
+                final tarea = widget.mascotaActual.tareasDiarias[index];
+                
                 return Dismissible(
-                  key: UniqueKey(), // Llave única necesaria para borrar
-                  // Fondo que se muestra al deslizar
-                  background: Container(
-                    color: Colors.red.shade400,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.only(left: 20),
-                    child: const Icon(Icons.delete, color: Colors.white, size: 30),
-                  ),
-                  secondaryBackground: Container(
-                    color: Colors.red.shade400,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete, color: Colors.white, size: 30),
-                  ),
+                  key: UniqueKey(), 
+                  background: _buildEliminarFondo(Alignment.centerLeft, const EdgeInsets.only(left: 20)),
+                  secondaryBackground: _buildEliminarFondo(Alignment.centerRight, const EdgeInsets.only(right: 20)),
                   onDismissed: (direction) {
-                    // Borramos el elemento de la lista
                     setState(() {
-                      _actividades.removeAt(index);
+                      widget.mascotaActual.tareasDiarias.removeAt(index);
                     });
-                    
-                    // Mensaje rápido (SnackBar) de confirmación
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${act['titulo']} eliminado')),
+                      SnackBar(content: Text('${tarea.titulo} eliminado')),
                     );
                   },
                   child: Card(
-                    color: completado ? Colors.green.shade100 : Colors.white,
+                    color: tarea.completado ? Colors.green.shade100 : Colors.white,
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
                       leading: Icon(
                         Icons.pets, 
-                        color: completado ? Colors.green.shade700 : Colors.grey
+                        color: tarea.completado ? Colors.green.shade700 : Colors.grey
                       ),
                       title: Text(
-                        act['titulo'],
+                        tarea.titulo,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: completado ? Colors.green.shade900 : Colors.black87,
+                          color: tarea.completado ? Colors.green.shade900 : Colors.black87,
                         ),
                       ),
                       subtitle: Text(
-                        completado ? '¡Completado!' : act['subtitulo'],
+                        tarea.completado ? 'Completado por ${widget.usuarioActual.nombre}' : tarea.categoria,
                         style: TextStyle(
-                          color: completado ? Colors.green.shade700 : Colors.grey.shade600,
+                          color: tarea.completado ? Colors.green.shade700 : Colors.grey.shade600,
                         ),
                       ),
                       trailing: IconButton(
                         icon: Icon(
-                          completado ? Icons.check_circle : Icons.radio_button_unchecked,
-                          color: completado ? Colors.green : Colors.grey,
+                          tarea.completado ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: tarea.completado ? Colors.green : Colors.grey,
                         ),
                         onPressed: () => _toggleActividad(index),
                       ),
@@ -195,8 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      
-      // Configuración del botón flotante centrado
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.blueAccent,
@@ -207,22 +179,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget auxiliar para las tarjetas de estadísticas
-  Widget _buildStatCard(String title, String value) {
+  Widget _buildEliminarFondo(Alignment alineacion, EdgeInsets padding) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        ],
-      ),
+      color: Colors.red.shade400,
+      margin: const EdgeInsets.only(bottom: 12),
+      alignment: alineacion,
+      padding: padding,
+      child: const Icon(Icons.delete, color: Colors.white, size: 30),
     );
   }
 }
